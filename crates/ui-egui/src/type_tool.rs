@@ -88,14 +88,36 @@ fn shows_own_layout(doc: &Document, t: &TextLayer) -> bool {
 /// Start editing an existing type layer. Like Photoshop, editing shows the text as the type
 /// engine lays it out, so a PSD layer is re-rendered first (inside the edit session's history
 /// step, so Cancel brings Photoshop's pixels back).
-fn begin_edit(app: &mut PhotocraftApp, id: LayerId, key: &str) {
-    let Some(st) = app.session.active() else { return };
+fn begin_edit(app: &mut PhotocraftApp, id: LayerId, key: &str) -> Result<(), String> {
+    let st = app.session.active().ok_or("no document open")?;
     let doc = st.doc.clone();
     if let Some(t) = text_layer(&doc, id)
         && !shows_own_layout(&doc, t)
     {
-        let _ = app.run("type.edit", json!({"layer": id.0, "coalesce": key}));
+        app.run("type.edit", json!({"layer": id.0, "coalesce": key}))?;
     }
+    Ok(())
+}
+
+/// Edit the active type layer from its thumbnail, selecting all text like Photoshop. Reuse the
+/// current session when already editing it, so Cancel and undo still cover the whole edit.
+pub fn edit_active(app: &mut PhotocraftApp) -> Result<(), String> {
+    let st = app.session.active().ok_or("no document open")?;
+    let id = st.active_layer.ok_or("no active layer")?;
+    let n = text_layer(&st.doc, id).ok_or("active layer is not a type layer")?.text.chars().count();
+    if app.ui.text_edit.as_ref().is_none_or(|ed| ed.layer != id.0) {
+        commit(app);
+        let key = session_key(app);
+        begin_edit(app, id, &key)?;
+        app.ui.text_edit = Some(TextEdit { layer: id.0, caret: n, anchor: 0, session: key, created: false, dragging: false, resize: None, preedit: None });
+    } else if let Some(ed) = app.ui.text_edit.as_mut() {
+        ed.anchor = 0;
+        ed.caret = n;
+    }
+    app.ui.tool = crate::state::Tool::Type;
+    app.ui.mask_target = false;
+    app.ui.vector_mask_target = false;
+    Ok(())
 }
 
 fn hit_offset(app: &mut PhotocraftApp, id: LayerId, x: f64, y: f64) -> usize {
@@ -202,7 +224,9 @@ pub fn pointer_down(app: &mut PhotocraftApp, x: f64, y: f64, shift: bool) -> boo
     if let Some(id) = hit_layer(app, x, y) {
         let _ = app.session.select_layer(id);
         let key = session_key(app);
-        begin_edit(app, id, &key);
+        if begin_edit(app, id, &key).is_err() {
+            return true;
+        }
         let off = hit_offset(app, id, x, y);
         app.ui.text_edit = Some(TextEdit { layer: id.0, caret: off, anchor: off, session: key, created: false, dragging: true, resize: None, preedit: None });
         return true;
@@ -754,6 +778,15 @@ fn apply(app: &mut PhotocraftApp, ctx: &egui::Context, props: serde_json::Value)
     if let Some(key) = app.ui.text_edit.as_ref().map(|ed| ed.session.clone()).or_else(|| drag_key(ctx)) {
         p["coalesce"] = json!(key);
     }
+    let _ = app.run("type.setStyle", p);
+}
+
+/// While characters are selected in a type layer, a new foreground colour (Color and Swatches
+/// panels, the Color Picker) recolours them, in the editing session's history step.
+pub fn foreground_changed(app: &mut PhotocraftApp) {
+    let Some((layer, Some(range))) = target(app) else { return };
+    let Some(ed) = app.ui.text_edit.as_ref() else { return };
+    let p = json!({"layer": layer, "range": range, "color": hex(app.session.tools.foreground), "coalesce": ed.session});
     let _ = app.run("type.setStyle", p);
 }
 

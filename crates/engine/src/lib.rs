@@ -21,6 +21,7 @@ pub mod channel_cmds;
 pub mod color_cmds;
 pub mod commands;
 pub mod comps_cmds;
+pub mod cutout_cmds;
 pub mod display_color;
 pub mod distort_cmds;
 pub mod edit_cmds;
@@ -71,6 +72,7 @@ pub mod smart_cmds;
 pub mod smartselect_cmds;
 pub mod snap;
 pub mod stamp_cmds;
+pub mod symmetry_cmds;
 mod timeline_cmds;
 pub mod transform_cmds;
 mod trap_cmds;
@@ -157,9 +159,14 @@ pub struct DocState {
     pub channel_view: channel_cmds::ChannelView,
     /// Select › Isolate Layers: the Layers panel lists only these layers (empty = off; view state).
     pub isolated_layers: Vec<LayerId>,
+    /// Painting symmetry axis made from the selected path (tool state, not document pixels).
+    pub symmetry_path: Option<symmetry_cmds::SymmetryAxis>,
     /// Layers panel: layers whose effects list is collapsed under their row (the fx triangle;
     /// view state, not history). Effects lists start open.
     pub fx_collapsed: Vec<LayerId>,
+    /// ⌥-click on a layer's eye (`layer.showOnly`): the layer shown alone and every layer's
+    /// visibility before, so the next ⌥-click restores it (view state, not history).
+    pub show_only: Option<(LayerId, Vec<(LayerId, bool)>)>,
 }
 
 impl DocState {
@@ -180,7 +187,9 @@ impl DocState {
             coalesce: None,
             channel_view: Default::default(),
             isolated_layers: Vec::new(),
+            symmetry_path: None,
             fx_collapsed: Vec::new(),
+            show_only: None,
         }
     }
     /// The selected layers in bottom-to-top document order, always including the active layer.
@@ -252,6 +261,9 @@ pub struct Session {
     pub clipboard: Option<edit_cmds::Clip>,
     /// Layer › Layer Style › Copy Layer Style: effects, blend mode and fill opacity.
     pub style_clipboard: Option<(photocraft_doc::Effects, photocraft_color::BlendMode, f32)>,
+    /// Shape path context menu: copied vector fill and stroke styles.
+    pub path_fill_clipboard: Option<photocraft_doc::Fill>,
+    pub path_stroke_clipboard: Option<photocraft_doc::ShapeStroke>,
     /// Colour management: proofing state, monitor profile, display transforms.
     pub color: color_cmds::ColorState,
     /// Open Edit Contents documents and the smart objects they update.

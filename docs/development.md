@@ -187,6 +187,12 @@ intents, black point compensation). It ships CC0 built-in profiles, including a 
 the live command registry (`menus::is_live`) and rewrites [`docs/parity.md`](parity.md). The test
 `parity::tests::parity_does_not_regress` fails if the live count drops below `parity::FLOOR`.
 
+`cargo xtask i18n-coverage` prints the UI translation coverage for each language in the
+`crates/ui-egui/src/i18n/mod.rs` registry, in stable language-code order. Its English-key set is
+derived from UI `tl!` literals, the menu catalog and UI command table, and menu command labels in
+the engine source. Catalog rows are validated for malformed and duplicate keys; unused legacy
+translations do not affect the denominator. Unregistered locale TSV files are ignored.
+
 ## Testing strategy
 
 - **Unit and property tests** in every crate. proptest is used for tile COW, regions and codecs.
@@ -319,12 +325,13 @@ against committed **sha256 manifests**. All pins are in one place:
 | `corpus/photoshop/` | 256 PSDs we authored with Photoshop: smart filters, layer-style effect shapes, the text engine, adjustments in every mode and depth | https://github.com/storytold/photocraft-corpus (ours, MIT OR Apache-2.0) | `xtask/photoshop-corpus.sha256` |
 | `corpus/psd/` | 170 small psd-tools and ag-psd files, the mix most PSD tests use | psd-tools and ag-psd upstreams (MIT) | `xtask/psd-corpus.sha256` |
 | `corpus/psd-tools/` | the complete psd-tools test set (309 files) | psd-tools upstream (MIT) | `xtask/psd-tools-corpus.sha256` |
+| `corpus/heif/` | 9 small HEIC/HEIF files (checkerboards, RGB strips, a grid-tiled photo with EXIF/XMP, each with Apple's decode as `.ref.png`; a 10-bit RGBA file with its source PNG), for the `heif` feature | heic-rs (MIT OR Apache-2.0) and pillow-heif (BSD-3-Clause) upstreams | `xtask/heif-corpus.sha256` |
 | `corpus/pngsuite/` | PngSuite | schaik.com release archive (public domain) | (fixed archive) |
 
 ```sh
 cargo xtask corpus                 # where each corpus lives, its pin, present or missing
 cargo xtask corpus --all           # fetch everything missing or stale (cold: about 15 s; verified copies are left alone)
-cargo xtask test-corpus            # fetch, then cargo test --release --features corpus on psd, codecs, io, engine
+cargo xtask test-corpus            # fetch, then cargo test --release --features corpus (+ heif on codecs, io) on psd, codecs, io, engine
 cargo xtask test-corpus -p io      # narrow to one crate (repeat -p for more)
 cargo xtask test-corpus --changed  # only if psd, io, codecs, compose, gpu, text or format changed vs origin/main
 cargo xtask test-corpus -- --nocapture   # pass arguments to the test binaries (per-file tables)
@@ -335,6 +342,8 @@ scripts/fetch-corpus.sh            # the same as cargo xtask corpus --all
 
 - The corpus tests sit behind the `corpus` cargo feature of `photocraft-psd`, `photocraft-codecs`,
   `photocraft-io` and `photocraft-engine`, so plain `cargo test` neither compiles nor needs them.
+  The HEIF ones also need the `heif` feature of `photocraft-codecs`/`photocraft-io` (test-corpus
+  turns it on).
 - With the feature on, a missing corpus is a failure ("run `cargo xtask corpus --all`"), never a
   silent skip, and every floor is enforced.
 - If you touch psd, io, codecs, compose, gpu, text or format, run `cargo xtask test-corpus` before

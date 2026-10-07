@@ -58,7 +58,7 @@ choice!(ColorPicker { Adobe = "adobe", System = "system" } default Adobe);
 choice!(Theme { Pro = "pro", ProMedium = "proMedium", Studio = "studio", StudioLight = "studioLight", Classic = "classic" } default ProMedium);
 choice!(CanvasColor { Default = "default", Black = "black", DarkGray = "darkGray", MediumGray = "mediumGray", LightGray = "lightGray", Custom = "custom" } default Default);
 choice!(CanvasBorder { DropShadow = "dropShadow", Line = "line", None = "none" } default DropShadow);
-choice!(UiScale { Auto = "auto", P100 = "100", P200 = "200" } default Auto);
+choice!(UiScale { Auto = "auto", P75 = "75", P100 = "100", P125 = "125", P150 = "150", P175 = "175", P200 = "200", P250 = "250", P300 = "300" } default Auto);
 choice!(
     /// Graphics backend of the desktop app's window and GPU canvas (applies at next launch).
     /// `auto` lets PhotoCraft pick (DX12 for Intel adapters on Windows); `cpu` composites on the
@@ -216,6 +216,9 @@ pub struct Interface {
     /// Draw menu item colours set with Edit › Menus.
     pub show_menu_colors: bool,
     pub show_tooltips: bool,
+    /// Move tool drags show only the layer's outline and an arrow, leaving its pixels in place
+    /// until release. Off (the default), the pixels follow the pointer live inside the outline.
+    pub show_bounding_box_when_dragging_layer: bool,
 }
 
 impl Default for Interface {
@@ -232,6 +235,7 @@ impl Default for Interface {
             dynamic_color_sliders: true,
             show_menu_colors: true,
             show_tooltips: true,
+            show_bounding_box_when_dragging_layer: false,
         }
     }
 }

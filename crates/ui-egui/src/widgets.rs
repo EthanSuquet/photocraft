@@ -341,6 +341,17 @@ fn button_impl(ui: &mut Ui, label: &str, min_width: f32, bg: Color32, fg: Color3
     resp
 }
 
+/// Cached RGB data; drawing work is bounded by the 256 display bins, never the image size.
+pub fn rgb_histogram(ui: &mut Ui, histogram: &photocraft_algo::histogram::RgbHistogram, height: f32) -> egui::Response {
+    let t = Tokens::get(ui.ctx());
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(ui.available_width().max(1.0), height.max(1.0)), egui::Sense::hover());
+    ui.painter().rect_filled(rect, t.radius_sm, t.histogram_background());
+    let plot = rect.shrink(4.0);
+    crate::rgb_histogram::paint(ui.painter(), plot, histogram, &t);
+    ui.painter().rect_stroke(rect, t.radius_sm, egui::Stroke::new(1.0, t.field_border), egui::StrokeKind::Inside);
+    response
+}
+
 /// Small caps section label.
 pub fn section_label(ui: &mut Ui, text: &str) {
     let t = Tokens::get(ui.ctx());
@@ -415,6 +426,23 @@ pub fn swatch_popup(swatch: &Response) -> egui::Popup<'static> {
         .anchor(Rect::from_x_y_ranges(left..=left, swatch.rect.y_range()))
         .align(egui::RectAlign::BOTTOM_START)
         .align_alternatives(&[egui::RectAlign::TOP_START])
+}
+
+pub fn dropdown_with_tooltips<T: PartialEq + Clone>(ui: &mut Ui, id: &str, current: &mut T, options: &[(T, &str, &str)], width: f32) -> bool {
+    let label = options.iter().find(|(v, _, _)| v == current).map(|(_, l, _)| tl!(l)).unwrap_or("—");
+    let mut changed = false;
+    let response = egui::ComboBox::from_id_salt(id).selected_text(label).width(width).height(420.0).icon(chevron_icon).show_ui(ui, |ui| {
+        for (v, l, tip) in options {
+            if ui.selectable_label(v == current, tl!(l)).on_hover_text(tl!(tip)).clicked() {
+                *current = v.clone();
+                changed = true;
+            }
+        }
+    });
+    if let Some((_, _, tip)) = options.iter().find(|(v, _, _)| v == current) {
+        let _ = response.response.on_hover_text(tl!(tip));
+    }
+    changed
 }
 
 /// Paint a small checkerboard (transparency) in `rect`.
