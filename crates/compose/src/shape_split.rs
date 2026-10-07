@@ -68,9 +68,9 @@ pub fn split(sh: &ShapeLayer, canvas: Rect) -> Option<(Surface, Surface)> {
 /// Fits the stroke part to the shape's own pixels: where they reach past the fill, the stroke
 /// covers what the fill doesn't (`(pixels - fill) / (1 - fill)`), in the pixels' colour where we
 /// drew no stroke, and elsewhere in the colour that, drawn over the fill, gives back the pixels'
-/// colour. Our stroke's own colour would be wrong where Photoshop's fill covers more of the pixel
+/// colour. Our stroke's own colour would be wrong where the file's fill covers more of the pixel
 /// than ours (shapes snapped to whole pixels with a stroke thinner than a pixel): the fitted
-/// stroke is then mostly Photoshop's fill, and an edge drawn in the stroke's full colour is far
+/// stroke is then mostly the file's fill, and an edge drawn in the stroke's full colour is far
 /// too dark.
 fn fit_stroke(fill: &Surface, stroke: &mut Surface, cache: &Surface, canvas: Rect) {
     // Where either has pixels (the stroke may reach past the shape's pixels, and vice versa).
