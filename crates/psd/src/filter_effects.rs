@@ -215,6 +215,10 @@ impl FilterEffects {
             out.put(&body);
             out.resize(out.len().next_multiple_of(4), 0);
         }
+        if self.items.is_empty() {
+            // One empty section, so the block still parses.
+            out.put_u64(0);
+        }
         out
     }
 }
@@ -247,6 +251,9 @@ mod tests {
         assert_eq!(back, fx);
         assert_eq!(back.items[0].decoded_mask().unwrap().1, vec![128; 16]);
         assert_eq!(back.items[0].slots[0].as_ref().unwrap().decode(4, 4, 8).unwrap(), vec![10; 16]);
+        // No items still writes a section, so the block reads back.
+        let empty = FilterEffects { version: 3, items: Vec::new() };
+        assert_eq!(FilterEffects::parse(&empty.to_bytes()).unwrap(), empty);
         // Padding is allowed, garbage is not.
         let mut padded = bytes.clone();
         padded.extend([0, 0]);
